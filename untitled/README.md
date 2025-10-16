@@ -105,3 +105,8 @@ Este proyecto tiene como objetivo aplicar los conocimientos adquiridos durante e
 
 <img width="1298" height="989" alt="image" src="https://github.com/user-attachments/assets/bd5b7d19-22e0-4716-8073-1c682489621e" />
 
+**Flujo de Trabajo**
+
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/21994ff0-22f4-4947-b24a-a3c841e3f053" />
+
+<img width="3869" height="4227" alt="Diagrama en blanco" src="https://github.com/user-attachments/assets/3453cd1f-1999-411a-8b91-102aebe8a972" />
