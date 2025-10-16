@@ -4,8 +4,11 @@
 **Autor:** Roberto Guillot  
 **Universidad:** Universidad de La Guajira  
 **Materia:** Desarrollo Móvil  
-**Docente:** Bryan J. Otero Arrieta  
+**Docente:** Bryan J. Otero Arrieta
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/88590391-905d-4a04-8e7c-708ca043dfc8" width="465" height="329" alt="image" />
+</p>
 ---
 
 ## 🧾 Descripción del Proyecto
@@ -100,4 +103,5 @@ Este proyecto tiene como objetivo aplicar los conocimientos adquiridos durante e
 
 **Configuracion**
 
+<img width="1298" height="989" alt="image" src="https://github.com/user-attachments/assets/bd5b7d19-22e0-4716-8073-1c682489621e" />
 
