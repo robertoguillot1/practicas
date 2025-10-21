@@ -1,5 +1,8 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/sale.dart';
 import '../models/customer.dart';
 import '../models/product.dart';
@@ -34,7 +37,91 @@ class ExcelGenerator {
       ].join(','));
     }
     
-    await file.writeAsString(buffer.toString());
+    await file.writeAsBytes(utf8.encode(buffer.toString()));
     return file;
+  }
+
+  static Future<File?> generateAndSaveExcel(
+    List<Sale> sales,
+    CustomerService customerService,
+    ProductService productService,
+  ) async {
+    try {
+      // Crear archivo temporal primero
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'reporte_ventas_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final tempFile = File('${tempDir.path}/$fileName');
+      
+      final buffer = StringBuffer();
+      buffer.writeln('ID,Cliente,Producto,Fecha,Total,Estado');
+      
+      for (var sale in sales) {
+        final customer = customerService.getById(sale.customerId);
+        final product = productService.getById(sale.productId);
+        
+        buffer.writeln([
+          sale.id,
+          customer.name.isNotEmpty ? customer.name : 'Cliente desconocido',
+          product?.name ?? 'Producto desconocido',
+          formatDate(sale.date),
+          formatCurrency(sale.total),
+          sale.isPending ? 'Pendiente' : 'Pagado'
+        ].join(','));
+      }
+      
+      await tempFile.writeAsBytes(utf8.encode(buffer.toString()));
+      
+      // Usar share_plus para permitir al usuario guardar donde quiera
+      await Share.shareXFiles(
+        [XFile(tempFile.path)],
+        text: 'Reporte de ventas - CervezApp',
+        subject: 'Reporte de ventas CSV',
+      );
+      
+      return tempFile;
+    } catch (e) {
+      throw Exception('Error al guardar archivo: $e');
+    }
+  }
+
+  static Future<void> shareExcel(
+    List<Sale> sales,
+    CustomerService customerService,
+    ProductService productService,
+  ) async {
+    try {
+      // Crear archivo temporal
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'reporte_ventas_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final file = File('${tempDir.path}/$fileName');
+      
+      final buffer = StringBuffer();
+      buffer.writeln('ID,Cliente,Producto,Fecha,Total,Estado');
+      
+      for (var sale in sales) {
+        final customer = customerService.getById(sale.customerId);
+        final product = productService.getById(sale.productId);
+        
+        buffer.writeln([
+          sale.id,
+          customer.name.isNotEmpty ? customer.name : 'Cliente desconocido',
+          product?.name ?? 'Producto desconocido',
+          formatDate(sale.date),
+          formatCurrency(sale.total),
+          sale.isPending ? 'Pendiente' : 'Pagado'
+        ].join(','));
+      }
+      
+      await file.writeAsBytes(utf8.encode(buffer.toString()));
+      
+      // Compartir el archivo
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Reporte de ventas - CervezApp',
+        subject: 'Reporte de ventas',
+      );
+    } catch (e) {
+      throw Exception('Error al compartir archivo: $e');
+    }
   }
 }

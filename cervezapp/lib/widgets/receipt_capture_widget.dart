@@ -30,85 +30,95 @@ class _ReceiptCaptureWidgetState extends State<ReceiptCaptureWidget> {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                const Icon(Icons.receipt_long, color: Colors.blue),
+                const Icon(Icons.receipt_long, color: Colors.blue, size: 20),
                 const SizedBox(width: 8),
-                const Text(
-                  'Comprobante de Pago Nequi',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    'Comprobante de Pago Nequi',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
                 ),
-                if (_receiptPath != null) ...[
-                  const SizedBox(width: 8),
+                if (_receiptPath != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.green,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      '✓ Subido',
+                      '✓',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            
+            // Botones más compactos
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _takePhoto,
+                    icon: _isLoading 
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.camera_alt, size: 16),
+                    label: Text(_isLoading ? 'Capturando...' : 'Tomar Foto', style: const TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _pickFromGallery,
+                    icon: const Icon(Icons.photo_library, size: 16),
+                    label: const Text('Galería', style: TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    ),
+                  ),
+                ),
+                if (_receiptPath != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _isLoading ? null : _removeReceipt,
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                    tooltip: 'Eliminar comprobante',
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
                 ],
               ],
             ),
-            const SizedBox(height: 12),
             
-            // Solo botones, sin mostrar imagen
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _takePhoto,
-                  icon: _isLoading 
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.camera_alt),
-                  label: Text(_isLoading ? 'Capturando...' : 'Tomar Foto'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _pickFromGallery,
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Galería'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                if (_receiptPath != null)
-                  IconButton(
-                    onPressed: _isLoading ? null : _removeReceipt,
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    tooltip: 'Eliminar comprobante',
-                  ),
-              ],
-            ),
-            
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
-              '💡 Tip: Toma una foto clara del comprobante de transferencia Nequi',
+              '💡 Toma una foto clara del comprobante',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: Colors.grey.shade600,
                 fontStyle: FontStyle.italic,
               ),

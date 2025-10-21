@@ -7,6 +7,8 @@ import '../services/product_service.dart';
 import '../services/sales_service.dart';
 import '../services/customer_service.dart';
 import '../services/stats_service.dart';
+import '../services/auth_service.dart';
+import 'auth/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -18,6 +20,57 @@ class HomeScreen extends StatelessWidget {
         title: const Text("🍻 CervezApp Dashboard"),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          Consumer<AuthService>(
+            builder: (context, authService, child) {
+              return PopupMenuButton<String>(
+                icon: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    authService.currentUser?.fullName.isNotEmpty == true 
+                        ? authService.currentUser!.fullName[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                onSelected: (String value) {
+                  if (value == 'profile') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                    );
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person),
+                        const SizedBox(width: 8),
+                        Text(authService.currentUser?.fullName ?? 'Usuario'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'role',
+                    enabled: false,
+                    child: Text(
+                      authService.currentUser?.isAdmin == true ? 'Administrador' : 'Trabajador',
+                      style: TextStyle(
+                        color: authService.currentUser?.isAdmin == true ? Colors.red : Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       drawer: const AppDrawer(),
       body: Consumer4<ProductService, SalesService, CustomerService, StatsService>(

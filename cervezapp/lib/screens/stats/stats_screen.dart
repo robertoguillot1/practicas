@@ -355,24 +355,26 @@ class _StatsScreenState extends State<StatsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('📄 Exportar Reporte'),
-        content: const Text('Selecciona el formato de exportación:'),
+        content: const Text('Selecciona cómo quieres exportar tu reporte:'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
           ),
+          // Opciones para CSV
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(context);
-              _exportToCSV(context);
+              _showCsvOptions(context);
             },
             icon: const Icon(Icons.table_chart),
             label: const Text('CSV'),
           ),
+          // Opciones para TXT
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(context);
-              _exportToTXT(context);
+              _showTxtOptions(context);
             },
             icon: const Icon(Icons.description),
             label: const Text('TXT'),
@@ -382,56 +384,180 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  void _exportToCSV(BuildContext context) async {
+  void _showCsvOptions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('📊 Exportar CSV'),
+        content: const Text('¿Cómo quieres exportar tu reporte CSV?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _saveCsvToDevice(context);
+            },
+            icon: const Icon(Icons.save),
+            label: const Text('Guardar en dispositivo'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _shareCsv(context);
+            },
+            icon: const Icon(Icons.share),
+            label: const Text('Compartir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTxtOptions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('📄 Exportar TXT'),
+        content: const Text('¿Cómo quieres exportar tu reporte TXT?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _saveTxtToDevice(context);
+            },
+            icon: const Icon(Icons.save),
+            label: const Text('Guardar en dispositivo'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _shareTxt(context);
+            },
+            icon: const Icon(Icons.share),
+            label: const Text('Compartir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _saveCsvToDevice(BuildContext context) async {
     final salesService = Provider.of<SalesService>(context, listen: false);
     final productService = Provider.of<ProductService>(context, listen: false);
     final customerService = Provider.of<CustomerService>(context, listen: false);
     
     try {
-      final file = await ExcelGenerator.generateSalesExcel(
+      final file = await ExcelGenerator.generateAndSaveExcel(
         salesService.sales,
         customerService,
         productService,
       );
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Reporte CSV exportado: ${file.path}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (file != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Reporte CSV listo para guardar/compartir'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error al exportar: $e'),
+          content: Text('❌ Error al guardar: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  void _exportToTXT(BuildContext context) async {
+  void _shareCsv(BuildContext context) async {
     final salesService = Provider.of<SalesService>(context, listen: false);
     final productService = Provider.of<ProductService>(context, listen: false);
     final customerService = Provider.of<CustomerService>(context, listen: false);
     
     try {
-      final file = await PdfGenerator.generateSalesReport(
+      await ExcelGenerator.shareExcel(
         salesService.sales,
         customerService,
         productService,
       );
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Reporte TXT exportado: ${file.path}'),
+        const SnackBar(
+          content: Text('✅ Reporte CSV listo para compartir'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error al exportar: $e'),
+          content: Text('❌ Error al compartir: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _saveTxtToDevice(BuildContext context) async {
+    final salesService = Provider.of<SalesService>(context, listen: false);
+    final productService = Provider.of<ProductService>(context, listen: false);
+    final customerService = Provider.of<CustomerService>(context, listen: false);
+    
+    try {
+      final file = await PdfGenerator.generateAndSavePdf(
+        salesService.sales,
+        customerService,
+        productService,
+      );
+      
+      if (file != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Reporte TXT listo para guardar/compartir'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error al guardar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _shareTxt(BuildContext context) async {
+    final salesService = Provider.of<SalesService>(context, listen: false);
+    final productService = Provider.of<ProductService>(context, listen: false);
+    final customerService = Provider.of<CustomerService>(context, listen: false);
+    
+    try {
+      await PdfGenerator.sharePdf(
+        salesService.sales,
+        customerService,
+        productService,
+      );
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Reporte TXT listo para compartir'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error al compartir: $e'),
           backgroundColor: Colors.red,
         ),
       );

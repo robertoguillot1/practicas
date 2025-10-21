@@ -31,6 +31,8 @@ dependencies:
   # 📷 CÁMARA Y ARCHIVOS
   image_picker: ^1.0.7
   path_provider: ^2.1.2
+  file_picker: ^8.0.0+1
+  share_plus: ^7.2.2
 
   # ⚙️ PERSISTENCIA LOCAL (para futuras versiones)
   shared_preferences: ^2.3.3
