@@ -13,8 +13,8 @@ class SaleFormScreen extends StatefulWidget {
 }
 
 class _SaleFormScreenState extends State<SaleFormScreen> {
-  int? selectedProductId;
-  int? selectedCustomerId;
+  String? selectedProductId;
+  String? selectedCustomerId;
   int quantity = 1;
   String paymentType = 'Cash';
   bool isAnonymousSale = false;
@@ -23,7 +23,6 @@ class _SaleFormScreenState extends State<SaleFormScreen> {
   
   // Variables para cálculo de cambio
   final TextEditingController _cashReceivedController = TextEditingController();
-  double? _totalAmount;
   double? _changeAmount;
 
   @override
@@ -46,7 +45,6 @@ class _SaleFormScreenState extends State<SaleFormScreen> {
     final cashReceived = double.tryParse(_cashReceivedController.text) ?? 0.0;
     final total = _calculateTotal();
     setState(() {
-      _totalAmount = total;
       _changeAmount = cashReceived - total;
     });
   }
@@ -65,11 +63,11 @@ class _SaleFormScreenState extends State<SaleFormScreen> {
           key: _formKey,
           child: Column(
             children: [
-              DropdownButtonFormField<int>(
+              DropdownButtonFormField<String>(
                 value: selectedProductId,
                 items: productService.products
                     .where((p) => p.stock > 0) // Solo productos con stock
-                    .map((p) => DropdownMenuItem(
+                    .map((p) => DropdownMenuItem<String>(
                   value: p.id,
                   child: Text('${p.name} (\$${p.price.toStringAsFixed(0)}) - Stock: ${p.stock}'),
                 ))
@@ -119,10 +117,10 @@ class _SaleFormScreenState extends State<SaleFormScreen> {
                       ),
                       if (!isAnonymousSale) ...[
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<int>(
+                        DropdownButtonFormField<String>(
                           value: selectedCustomerId,
                           items: customerService.customers
-                              .map((c) => DropdownMenuItem(
+                              .map((c) => DropdownMenuItem<String>(
                             value: c.id,
                             child: Text(c.name),
                           ))
@@ -332,8 +330,8 @@ class _SaleFormScreenState extends State<SaleFormScreen> {
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       if (selectedProductId != null && (isAnonymousSale || selectedCustomerId != null)) {
-                        // Para ventas anónimas, usar ID 0 (cliente vacío)
-                        final customerId = isAnonymousSale ? 0 : selectedCustomerId!;
+                        // Para ventas anónimas, usar null (cliente vacío)
+                        final customerId = isAnonymousSale ? null : selectedCustomerId;
                         
                         salesService.registerSale(
                           customerId,

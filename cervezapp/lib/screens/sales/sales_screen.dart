@@ -3,13 +3,24 @@ import 'package:provider/provider.dart';
 import '../../services/sales_service.dart';
 import '../../services/customer_service.dart';
 import '../../services/product_service.dart';
+import '../../models/customer.dart';
 import 'sale_form.dart';
 import 'sale_edit_screen.dart';
 import '../../widgets/receipt_capture_widget.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
-class SalesScreen extends StatelessWidget {
+class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
+
+  @override
+  State<SalesScreen> createState() => _SalesScreenState();
+}
+
+class _SalesScreenState extends State<SalesScreen> {
+  bool _showTodayOnly = true; // Por defecto mostrar solo hoy
+  bool _isSelectionMode = false; // Modo de selección múltiple
+  Set<String> _selectedSales = <String>{}; // IDs de ventas seleccionadas
 
   @override
   Widget build(BuildContext context) {
@@ -17,38 +28,94 @@ class SalesScreen extends StatelessWidget {
     final customerService = Provider.of<CustomerService>(context);
     final productService = Provider.of<ProductService>(context);
 
+    // Verificar si ha cambiado el día para actualizar las estadísticas
+    salesService.checkDayChange();
+
+    // Determinar qué ventas mostrar según el filtro seleccionado
+    final salesToShow = _showTodayOnly ? salesService.todaySales : salesService.sales;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ventas'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_shopping_cart),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SaleFormScreen()),
-            ),
-          ),
-        ],
+        title: Text(_isSelectionMode ? 'Seleccionar Ventas (${_selectedSales.length})' : 'Movimientos'),
+        actions: _isSelectionMode ? _buildSelectionActions(salesService) : _buildNormalActions(salesService),
       ),
-      body: salesService.sales.isEmpty
-          ? const Center(child: Text('No hay ventas registradas'))
-          : ListView.builder(
-        itemCount: salesService.sales.length,
-        itemBuilder: (context, i) {
-          final sale = salesService.sales[i];
-          final customer = customerService.getById(sale.customerId);
-          final product = productService.getById(sale.productId);
-
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ExpansionTile(
-              leading: CircleAvatar(
-                backgroundColor: sale.isPending ? Colors.orange : Colors.green,
-                child: Icon(
-                  sale.isPending ? Icons.pending : Icons.check_circle,
-                  color: Colors.white,
-                ),
+      body: Column(
+        children: [
+          // Botones de filtro (solo cuando no está en modo selección)
+          if (!_isSelectionMode)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => setState(() => _showTodayOnly = true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _showTodayOnly ? Colors.pink : Colors.white,
+                        foregroundColor: _showTodayOnly ? Colors.white : Colors.black,
+                        side: BorderSide(
+                          color: _showTodayOnly ? Colors.pink : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: const Text('Hoy'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => setState(() => _showTodayOnly = false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: !_showTodayOnly ? Colors.pink : Colors.white,
+                        foregroundColor: !_showTodayOnly ? Colors.white : Colors.black,
+                        side: BorderSide(
+                          color: !_showTodayOnly ? Colors.pink : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: const Text('Más Movimientos'),
+                    ),
+                  ),
+                ],
               ),
+            ),
+          // Estadísticas del día (solo cuando se muestra "Hoy" y no está en modo selección)
+          if (_showTodayOnly && !_isSelectionMode) _buildTodayStats(salesService),
+          // Lista de ventas
+          Expanded(
+            child: salesToShow.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+              itemCount: salesToShow.length,
+              itemBuilder: (context, i) {
+                final sale = salesToShow[i];
+                final customer = sale.customerId != null ? customerService.getById(sale.customerId!) : Customer.empty();
+                final product = sale.productId != null ? productService.getById(sale.productId!) : null;
+
+                return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: _isSelectionMode && _selectedSales.contains(sale.id) 
+                ? Colors.blue.shade50 
+                : null,
+            child: ExpansionTile(
+              leading: _isSelectionMode 
+                ? Checkbox(
+                    value: _selectedSales.contains(sale.id),
+                    onChanged: (bool? value) {
+                      setState(() {
+                        if (value == true) {
+                          _selectedSales.add(sale.id!);
+                        } else {
+                          _selectedSales.remove(sale.id);
+                        }
+                      });
+                    },
+                  )
+                : CircleAvatar(
+                    backgroundColor: sale.isPending ? Colors.orange : Colors.green,
+                    child: Icon(
+                      sale.isPending ? Icons.pending : Icons.check_circle,
+                      color: Colors.white,
+                    ),
+                  ),
               title: Text(
                 '${product?.name ?? "Producto desconocido"}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -125,7 +192,9 @@ class SalesScreen extends StatelessWidget {
                       if (newPaymentType == 'Nequi' && !sale.hasReceipt) {
                         _showReceiptCaptureDialog(context, sale, salesService);
                       } else {
-                        salesService.updatePaymentStatus(sale.id, newPaymentType);
+                        if (sale.id != null) {
+                          salesService.updatePaymentStatus(sale.id!, newPaymentType);
+                        }
                       }
                     },
                     itemBuilder: (BuildContext context) => [
@@ -242,6 +311,352 @@ class SalesScreen extends StatelessWidget {
           );
         },
       ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildNormalActions(SalesService salesService) {
+    return [
+      Consumer<SalesService>(
+        builder: (context, salesService, child) {
+          return IconButton(
+            icon: salesService.isLoading 
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.refresh),
+            onPressed: salesService.isLoading ? null : () {
+              salesService.refreshSales();
+            },
+            tooltip: 'Refrescar ventas',
+          );
+        },
+      ),
+      IconButton(
+        icon: const Icon(Icons.select_all),
+        onPressed: () {
+          setState(() {
+            _isSelectionMode = true;
+            _selectedSales.clear();
+          });
+        },
+        tooltip: 'Seleccionar ventas',
+      ),
+      IconButton(
+        icon: const Icon(Icons.add_shopping_cart),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SaleFormScreen()),
+        ),
+        tooltip: 'Agregar venta',
+      ),
+    ];
+  }
+
+  List<Widget> _buildSelectionActions(SalesService salesService) {
+    return [
+      if (_selectedSales.isNotEmpty)
+        IconButton(
+          icon: const Icon(Icons.delete),
+          onPressed: () => _showDeleteSelectedDialog(salesService),
+          tooltip: 'Borrar seleccionadas',
+        ),
+      IconButton(
+        icon: const Icon(Icons.delete_sweep),
+        onPressed: () => _showDeleteAllDialog(salesService),
+        tooltip: 'Borrar todas',
+      ),
+      IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () {
+          setState(() {
+            _isSelectionMode = false;
+            _selectedSales.clear();
+          });
+        },
+        tooltip: 'Cancelar selección',
+      ),
+    ];
+  }
+
+  Widget _buildTodayStats(SalesService salesService) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.pink.shade50, Colors.pink.shade100],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.pink.shade200),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.today, color: Colors.pink.shade600),
+              const SizedBox(width: 8),
+              Text(
+                'Resumen del Día',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.pink.shade800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  'Ventas',
+                  '${salesService.todaySalesCount}',
+                  Icons.shopping_cart,
+                  Colors.blue,
+                ),
+              ),
+              Expanded(
+                child: _buildStatItem(
+                  'Ingresos',
+                  '\$${salesService.todayRevenue.toStringAsFixed(0)}',
+                  Icons.monetization_on,
+                  Colors.green,
+                ),
+              ),
+              Expanded(
+                child: _buildStatItem(
+                  'Unidades',
+                  '${salesService.todayUnitsSold}',
+                  Icons.inventory,
+                  Colors.orange,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shopping_cart_outlined,
+            size: 80,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _showTodayOnly 
+              ? 'Hoy no has hecho ningún movimiento.'
+              : 'No hay ventas registradas',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey.shade600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _showTodayOnly 
+              ? 'Las ventas del día aparecerán aquí'
+              : 'Las ventas aparecerán aquí cuando registres alguna',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAllDialog(SalesService salesService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('⚠️ Confirmar Borrado'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '¿Estás seguro de que quieres borrar TODAS las ventas?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Esta acción:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('• Borrará ${salesService.sales.length} ventas'),
+                  const Text('• No se puede deshacer'),
+                  const Text('• Eliminará todo el historial'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await salesService.deleteAllSales();
+              setState(() {
+                _isSelectionMode = false;
+                _selectedSales.clear();
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('BORRAR TODAS'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteSelectedDialog(SalesService salesService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('⚠️ Confirmar Borrado'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Estás seguro de que quieres borrar ${_selectedSales.length} ventas seleccionadas?',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Esta acción:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('• Borrará ${_selectedSales.length} ventas'),
+                  const Text('• No se puede deshacer'),
+                  const Text('• Las ventas restantes se mantendrán'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await salesService.deleteSelectedSales(_selectedSales.toList());
+              setState(() {
+                _isSelectionMode = false;
+                _selectedSales.clear();
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('BORRAR SELECCIONADAS'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -312,27 +727,107 @@ class SalesScreen extends StatelessWidget {
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(receiptPath),
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error, color: Colors.red, size: 64),
-                            SizedBox(height: 16),
-                            Text('Error al cargar el comprobante'),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                  child: kIsWeb 
+                    ? _buildWebReceiptView(receiptPath)
+                    : Image.file(
+                        File(receiptPath),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error, color: Colors.red, size: 64),
+                                SizedBox(height: 16),
+                                Text('Error al cargar el comprobante'),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Widget para mostrar información del comprobante en web
+  static Widget _buildWebReceiptView(String receiptPath) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.receipt_long,
+            size: 64,
+            color: Colors.blue.shade600,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Comprobante Disponible',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'El comprobante fue capturado desde el dispositivo móvil.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.orange.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Colors.orange.shade700,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Ver desde la app móvil',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Ruta: ${receiptPath.split('/').last}',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade500,
+              fontFamily: 'monospace',
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

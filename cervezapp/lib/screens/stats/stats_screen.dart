@@ -4,6 +4,7 @@ import '../../services/stats_service.dart';
 import '../../services/product_service.dart';
 import '../../services/sales_service.dart';
 import '../../services/customer_service.dart';
+import '../../models/customer.dart';
 import '../../widgets/stat_card.dart';
 import '../../models/sale.dart';
 import '../../utils/excel_generator.dart';
@@ -17,7 +18,7 @@ class StatsScreen extends StatefulWidget {
 }
 
 class _StatsScreenState extends State<StatsScreen> {
-  String selectedFilter = 'Todos';
+  String selectedFilter = 'Hoy'; // Cambiar por defecto a "Hoy"
   String selectedPaymentMethod = 'Todos';
   DateTimeRange? dateRange;
 
@@ -29,17 +30,25 @@ class _StatsScreenState extends State<StatsScreen> {
     final customerService = Provider.of<CustomerService>(context);
 
     // Filtrar ventas según los filtros seleccionados
-    List<Sale> filteredSales = salesService.sales;
+    List<Sale> filteredSales;
     
-    if (selectedPaymentMethod != 'Todos') {
-      filteredSales = filteredSales.where((s) => s.paymentType == selectedPaymentMethod).toList();
-    }
-    
-    if (dateRange != null) {
-      filteredSales = filteredSales.where((s) => 
+    // Determinar qué ventas usar según el filtro seleccionado
+    if (selectedFilter == 'Hoy') {
+      filteredSales = salesService.todaySales;
+    } else if (selectedFilter == 'Todos') {
+      filteredSales = salesService.sales;
+    } else if (selectedFilter == 'Personalizado' && dateRange != null) {
+      filteredSales = salesService.sales.where((s) => 
         s.date.isAfter(dateRange!.start.subtract(const Duration(days: 1))) &&
         s.date.isBefore(dateRange!.end.add(const Duration(days: 1)))
       ).toList();
+    } else {
+      filteredSales = salesService.sales;
+    }
+    
+    // Aplicar filtro de método de pago
+    if (selectedPaymentMethod != 'Todos') {
+      filteredSales = filteredSales.where((s) => s.paymentType == selectedPaymentMethod).toList();
     }
 
     // Calcular estadísticas filtradas
@@ -80,7 +89,7 @@ class _StatsScreenState extends State<StatsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Filtros activos
-              if (selectedFilter != 'Todos' || selectedPaymentMethod != 'Todos' || dateRange != null)
+              if (selectedFilter != 'Todos' || selectedPaymentMethod != 'Todos' || (selectedFilter == 'Personalizado' && dateRange != null))
                 Card(
                   color: Colors.blue.shade50,
                   child: Padding(
@@ -93,12 +102,19 @@ class _StatsScreenState extends State<StatsScreen> {
                         Wrap(
                           spacing: 8,
                           children: [
+                            if (selectedFilter == 'Hoy')
+                              Chip(
+                                label: const Text('Período: Hoy'),
+                                backgroundColor: Colors.pink.shade100,
+                                deleteIconColor: Colors.pink.shade700,
+                                onDeleted: () => setState(() => selectedFilter = 'Todos'),
+                              ),
                             if (selectedPaymentMethod != 'Todos')
                               Chip(
                                 label: Text('Pago: $selectedPaymentMethod'),
                                 onDeleted: () => setState(() => selectedPaymentMethod = 'Todos'),
                               ),
-                            if (dateRange != null)
+                            if (selectedFilter == 'Personalizado' && dateRange != null)
                               Chip(
                                 label: Text('Fecha: ${dateRange!.start.day}/${dateRange!.start.month} - ${dateRange!.end.day}/${dateRange!.end.month}'),
                                 onDeleted: () => setState(() => dateRange = null),
@@ -220,8 +236,8 @@ class _StatsScreenState extends State<StatsScreen> {
                   children: pendingPayments == 0
                       ? [const ListTile(title: Text('✅ No hay deudas pendientes'))]
                       : filteredSales.where((s) => s.isPending).map((sale) {
-                          final product = productService.getById(sale.productId);
-                          final customer = customerService.getById(sale.customerId);
+                          final product = sale.productId != null ? productService.getById(sale.productId!) : null;
+                          final customer = sale.customerId != null ? customerService.getById(sale.customerId!) : Customer.empty();
                           return ListTile(
                             leading: const Icon(Icons.pending, color: Colors.orange),
                             title: Text(product?.name ?? 'Producto desconocido'),
@@ -285,6 +301,24 @@ class _StatsScreenState extends State<StatsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
+              value: selectedFilter,
+              decoration: const InputDecoration(labelText: 'Período'),
+              items: const [
+                DropdownMenuItem(value: 'Hoy', child: Text('Hoy')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'Personalizado', child: Text('Personalizado')),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  selectedFilter = value!;
+                  if (value != 'Personalizado') {
+                    dateRange = null;
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
               value: selectedPaymentMethod,
               decoration: const InputDecoration(labelText: 'Método de Pago'),
               items: const [
@@ -296,26 +330,28 @@ class _StatsScreenState extends State<StatsScreen> {
               onChanged: (value) => setState(() => selectedPaymentMethod = value!),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final range = await showDateRangePicker(
-                  context: context,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now(),
-                );
-                if (range != null) {
-                  setState(() => dateRange = range);
-                }
-              },
-              icon: const Icon(Icons.date_range),
-              label: Text(dateRange == null ? 'Seleccionar Fechas' : 'Cambiar Fechas'),
-            ),
+            if (selectedFilter == 'Personalizado')
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (range != null) {
+                    setState(() => dateRange = range);
+                  }
+                },
+                icon: const Icon(Icons.date_range),
+                label: Text(dateRange == null ? 'Seleccionar Fechas' : 'Cambiar Fechas'),
+              ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () {
               setState(() {
+                selectedFilter = 'Hoy';
                 selectedPaymentMethod = 'Todos';
                 dateRange = null;
               });

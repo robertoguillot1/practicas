@@ -5,8 +5,6 @@ import '../../services/sales_service.dart';
 import '../../services/customer_service.dart';
 import '../../services/product_service.dart';
 import '../../models/sale.dart';
-import '../../models/customer.dart';
-import '../../models/product.dart';
 import '../../theme/app_colors.dart';
 
 class SaleEditScreen extends StatefulWidget {
@@ -32,8 +30,9 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
     _quantityController = TextEditingController(text: widget.sale.quantity.toString());
     _totalController = TextEditingController(text: widget.sale.total.toStringAsFixed(0));
     _selectedPaymentType = widget.sale.paymentType;
-    _selectedCustomerId = widget.sale.customerId.toString();
-    _selectedProductId = widget.sale.productId.toString();
+    // Asegurar que el valor del cliente sea válido para el dropdown
+    _selectedCustomerId = widget.sale.customerId;
+    _selectedProductId = widget.sale.productId;
   }
 
   @override
@@ -64,7 +63,7 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
@@ -110,12 +109,20 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
                   labelText: 'Cliente',
                   border: OutlineInputBorder(),
                 ),
-                items: customers.map((customer) {
-                  return DropdownMenuItem<String>(
-                    value: customer.id.toString(),
-                    child: Text(customer.name.isNotEmpty ? customer.name : 'Cliente ${customer.id}'),
-                  );
-                }).toList(),
+                items: [
+                  // Opción para venta anónima
+                  const DropdownMenuItem<String>(
+                    value: '0',
+                    child: Text('Venta Anónima'),
+                  ),
+                  // Clientes registrados (solo IDs no nulos)
+                  ...customers.where((customer) => customer.id != null).map((customer) {
+                    return DropdownMenuItem<String>(
+                      value: customer.id.toString(),
+                      child: Text(customer.name.isNotEmpty ? customer.name : 'Cliente ${customer.id}'),
+                    );
+                  }).toList(),
+                ],
                 onChanged: (value) {
                   setState(() {
                     _selectedCustomerId = value;
@@ -234,6 +241,7 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 24), // Espacio adicional al final
             ],
           ),
         ),
@@ -243,9 +251,8 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
 
   void _updateTotal() {
     if (_selectedProductId != null && _quantityController.text.isNotEmpty) {
-      final productId = int.parse(_selectedProductId!);
       final productService = Provider.of<ProductService>(context, listen: false);
-      final product = productService.getById(productId);
+      final product = productService.getById(_selectedProductId!);
       
       if (product != null) {
         final quantity = int.tryParse(_quantityController.text) ?? 0;
@@ -262,8 +269,8 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
       final updatedSale = Sale(
         id: widget.sale.id,
         date: widget.sale.date,
-        customerId: int.parse(_selectedCustomerId!),
-        productId: int.parse(_selectedProductId!),
+        customerId: _selectedCustomerId,
+        productId: _selectedProductId!,
         quantity: int.parse(_quantityController.text),
         total: double.parse(_totalController.text),
         paymentType: _selectedPaymentType,
@@ -296,15 +303,17 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              salesService.deleteSale(widget.sale.id);
-              Navigator.pop(context); // Cerrar diálogo
-              Navigator.pop(context); // Volver a la lista de ventas
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🗑️ Venta eliminada'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              if (widget.sale.id != null) {
+                salesService.deleteSale(widget.sale.id!);
+                Navigator.pop(context); // Cerrar diálogo
+                Navigator.pop(context); // Volver a la lista de ventas
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🗑️ Venta eliminada'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Eliminar'),

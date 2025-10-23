@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/product_service.dart';
-import '../../services/category_service.dart';
 import '../../models/product.dart';
 import '../../theme/app_colors.dart';
 

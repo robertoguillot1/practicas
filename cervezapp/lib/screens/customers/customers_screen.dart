@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/customer.dart';
 import '../../services/customer_service.dart';
 import 'customer_form.dart';
 
@@ -15,6 +14,26 @@ class CustomersScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Clientes'),
         actions: [
+          Consumer<CustomerService>(
+            builder: (context, customerService, child) {
+              return IconButton(
+                icon: customerService.isLoading 
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.refresh),
+                onPressed: customerService.isLoading ? null : () {
+                  customerService.refreshCustomers();
+                },
+                tooltip: 'Refrescar clientes',
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.person_add),
             onPressed: () => Navigator.push(
@@ -34,7 +53,11 @@ class CustomersScreen extends StatelessWidget {
             subtitle: Text('${c.email} • ${c.phone}'),
             trailing: IconButton(
               icon: const Icon(Icons.delete, color: Colors.redAccent),
-              onPressed: () => customerService.deleteCustomer(c.id),
+              onPressed: () {
+                if (c.id != null) {
+                  customerService.deleteCustomer(c.id!);
+                }
+              },
             ),
             onTap: () => Navigator.push(
               context,

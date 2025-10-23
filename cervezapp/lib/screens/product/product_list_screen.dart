@@ -95,8 +95,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                productService.deleteProduct(product.id);
-                Navigator.of(context).pop();
+                if (product.id != null) {
+                  productService.deleteProduct(product.id!);
+                  Navigator.of(context).pop();
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
@@ -138,8 +140,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ElevatedButton(
               onPressed: () {
                 final quantity = int.tryParse(quantityController.text);
-                if (quantity != null && quantity > 0) {
-                  productService.increaseStock(product.id, quantity);
+                if (quantity != null && quantity > 0 && product.id != null) {
+                  productService.increaseStock(product.id!, quantity);
                   Navigator.of(context).pop();
                 }
               },
@@ -168,6 +170,28 @@ class _ProductListScreenState extends State<ProductListScreen> {
         title: const Text("Inventario de Productos"),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          Consumer<ProductService>(
+            builder: (context, productService, child) {
+              return IconButton(
+                icon: productService.isLoading 
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.refresh),
+                onPressed: productService.isLoading ? null : () {
+                  productService.refreshProducts();
+                },
+                tooltip: 'Refrescar productos',
+              );
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.secondary,

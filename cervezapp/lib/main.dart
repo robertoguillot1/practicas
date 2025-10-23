@@ -1,6 +1,8 @@
 // v1.6 - main.dart
+import 'package:firebase_core/firebase_core.dart' show Firebase;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'firebase_options.dart' show DefaultFirebaseOptions;
 import 'theme/app_theme.dart';
 import 'services/product_service.dart';
 import 'services/customer_service.dart';
@@ -18,8 +20,13 @@ import 'screens/sales/sale_form.dart';
 import 'screens/stats/stats_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/profile_screen.dart';
+import 'screens/about_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   // Inicializamos los servicios base fuera de runApp para pasarlos a MultiProvider
   final authService = AuthService();
   final productService = ProductService();
@@ -32,6 +39,18 @@ void main() {
     productService: productService,
     salesService: salesService,
   );
+
+  // Establecer las referencias de servicios en AuthService
+  authService.setServices(
+    productService: productService,
+    customerService: customerService,
+    salesService: salesService,
+  );
+
+  // Inicializar datos por defecto
+  await authService.initializeDefaultAdmin();
+  await productService.initializeDefaultProducts();
+  await customerService.initializeDefaultCustomers();
 
   runApp(
     MultiProvider(
@@ -74,6 +93,7 @@ class CervezApp extends StatelessWidget {
             '/sales': (context) => const SalesScreen(),
             '/sale/new': (context) => const SaleFormScreen(),
             '/stats': (context) => const StatsScreen(),
+            '/about': (context) => const AboutScreen(),
           },
         );
       },

@@ -29,12 +29,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeControllers();
+    _refreshUserData();
+  }
+
+  void _initializeControllers() {
+    _usernameController = TextEditingController();
+    _emailController = TextEditingController();
+    _fullNameController = TextEditingController();
+  }
+
+  Future<void> _refreshUserData() async {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final user = authService.currentUser;
+    await authService.refreshCurrentUser();
     
-    _usernameController = TextEditingController(text: user?.username ?? '');
-    _emailController = TextEditingController(text: user?.email ?? '');
-    _fullNameController = TextEditingController(text: user?.fullName ?? '');
+    final user = authService.currentUser;
+    _usernameController.text = user?.username ?? '';
+    _emailController.text = user?.email ?? '';
+    _fullNameController.text = user?.fullName ?? '';
   }
 
   @override
@@ -54,9 +66,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = authService.currentUser;
 
     if (user == null) {
-      return const Scaffold(
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Mi Perfil'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
         body: Center(
-          child: Text('No hay usuario autenticado'),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Cargando datos del usuario...'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () async {
+                  await _refreshUserData();
+                  if (mounted) {
+                    setState(() {});
+                  }
+                },
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -80,12 +114,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (_isEditing)
             IconButton(
               icon: const Icon(Icons.close),
-              onPressed: () {
+              onPressed: () async {
                 setState(() {
                   _isEditing = false;
                   _isChangingPassword = false;
                 });
-                _resetForm();
+                await _resetForm();
               },
               tooltip: 'Cancelar',
             ),
@@ -226,12 +260,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isEditing = false;
-                                  });
-                                  _resetForm();
-                                },
+              onPressed: () async {
+                setState(() {
+                  _isEditing = false;
+                });
+                await _resetForm();
+              },
                                 child: const Text('Cancelar'),
                               ),
                             ),
@@ -257,6 +291,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               // Cambio de contraseña
               Card(
+                elevation: 4,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -264,6 +299,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Row(
                         children: [
+                          const Icon(
+                            Icons.lock,
+                            color: AppColors.primary,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
                           const Text(
                             'Cambiar Contraseña',
                             style: TextStyle(
@@ -288,6 +329,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                       ),
+                      
+                      if (!_isChangingPassword) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          '🔓 Activa el switch para cambiar tu contraseña',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _isChangingPassword = true;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: const Icon(Icons.edit),
+                            label: const Text('Activar Cambio de Contraseña'),
+                          ),
+                        ),
+                      ],
                       
                       if (_isChangingPassword) ...[
                         const SizedBox(height: 16),
@@ -382,16 +451,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         
                         const SizedBox(height: 16),
                         
-                        // Botón para cambiar contraseña
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _changePassword,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
+                        // Botones para cambiar contraseña
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _isChangingPassword = false;
+                                    _currentPasswordController.clear();
+                                    _newPasswordController.clear();
+                                    _confirmPasswordController.clear();
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                icon: const Icon(Icons.cancel),
+                                label: const Text('Cancelar'),
+                              ),
                             ),
-                            child: const Text('Cambiar Contraseña'),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _changePassword,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                icon: const Icon(Icons.security),
+                                label: const Text(
+                                  'Cambiar',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
@@ -472,8 +570,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _resetForm() {
+  Future<void> _resetForm() async {
     final authService = Provider.of<AuthService>(context, listen: false);
+    await authService.refreshCurrentUser();
     final user = authService.currentUser;
     
     _usernameController.text = user?.username ?? '';

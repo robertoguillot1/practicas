@@ -1,11 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/sale.dart';
 import '../models/customer.dart';
-import '../models/product.dart';
 import '../services/customer_service.dart';
 import '../services/product_service.dart';
 import 'formatters.dart';
@@ -24,8 +22,8 @@ class ExcelGenerator {
     buffer.writeln('ID,Cliente,Producto,Fecha,Total,Estado');
     
     for (var sale in sales) {
-      final customer = customerService.getById(sale.customerId);
-      final product = productService.getById(sale.productId);
+      final customer = sale.customerId != null ? customerService.getById(sale.customerId!) : Customer.empty();
+      final product = sale.productId != null ? productService.getById(sale.productId!) : null;
       
       buffer.writeln([
         sale.id,
@@ -56,8 +54,8 @@ class ExcelGenerator {
       buffer.writeln('ID,Cliente,Producto,Fecha,Total,Estado');
       
       for (var sale in sales) {
-        final customer = customerService.getById(sale.customerId);
-        final product = productService.getById(sale.productId);
+        final customer = sale.customerId != null ? customerService.getById(sale.customerId!) : Customer.empty();
+        final product = sale.productId != null ? productService.getById(sale.productId!) : null;
         
         buffer.writeln([
           sale.id,
@@ -99,8 +97,8 @@ class ExcelGenerator {
       buffer.writeln('ID,Cliente,Producto,Fecha,Total,Estado');
       
       for (var sale in sales) {
-        final customer = customerService.getById(sale.customerId);
-        final product = productService.getById(sale.productId);
+        final customer = sale.customerId != null ? customerService.getById(sale.customerId!) : Customer.empty();
+        final product = sale.productId != null ? productService.getById(sale.productId!) : null;
         
         buffer.writeln([
           sale.id,

@@ -1,5 +1,4 @@
 // v1.6 - widgets/receipt_capture_widget.dart
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/receipt_service.dart';
 

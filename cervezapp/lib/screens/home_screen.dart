@@ -8,6 +8,7 @@ import '../services/sales_service.dart';
 import '../services/customer_service.dart';
 import '../services/stats_service.dart';
 import '../services/auth_service.dart';
+import '../models/customer.dart';
 import 'auth/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -17,7 +18,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("🍻 CervezApp Dashboard"),
+        title: const Text("🍻 CervezApp"),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -309,8 +310,8 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           ...recentSales.map((sale) {
-                            final product = productService.getById(sale.productId);
-                            final customer = customerService.getById(sale.customerId);
+                            final product = sale.productId != null ? productService.getById(sale.productId!) : null;
+                            final customer = sale.customerId != null ? customerService.getById(sale.customerId!) : Customer.empty();
                             return ListTile(
                               leading: const Icon(Icons.receipt),
                               title: Text(product?.name ?? 'Producto desconocido'),
