@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Riego Hidropónico</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h1>Sistema de Riego Hidropónico</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="status-indicator">
+                        <span class="status-dot" id="connectionStatus"></span>
+                        <span id="connectionText">Conectando...</span>
+                    </div>
+                    <button class="btn-icon-only btn-theme" id="themeToggle" title="Cambiar tema">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    <button class="btn-icon-only btn-settings" id="settingsBtn" title="Configuración">
+                        ⚙️
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content" id="mainContent">
+            <!-- Control Manual -->
+            <section class="card control-card widget" data-widget="control">
+                <div class="widget-header">
+                    <div class="card-header">
+                        <h2>Control Manual</h2>
+                        <p class="card-subtitle">Activa o desactiva el motor manualmente</p>
+                    </div>
+                    <button class="widget-toggle" data-widget="control" title="Ocultar/Mostrar">−</button>
+                </div>
+                <div class="card-header">
+                    <h2>Control Manual</h2>
+                    <p class="card-subtitle">Activa o desactiva el motor manualmente</p>
+                </div>
+                <div class="control-content">
+                    <div class="motor-status">
+                        <div class="status-circle" id="motorStatusCircle">
+                            <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                                <path d="M12 6v6l4 2" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <div class="water-drops" id="waterDrops"></div>
+                        </div>
+                        <p class="status-text" id="motorStatusText">Motor Apagado</p>
+                    </div>
+                    <button class="btn btn-primary btn-large" id="toggleMotorBtn">
+                        <span class="btn-icon">⚡</span>
+                        <span>Encender Motor</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Configuración de Riego -->
+            <section class="card config-card widget" data-widget="config">
+                <div class="widget-header">
+                    <div class="card-header">
+                        <h2>Configuración de Riego</h2>
+                        <p class="card-subtitle">Ajusta la duración de cada ciclo de riego</p>
+                    </div>
+                    <button class="widget-toggle" data-widget="config" title="Ocultar/Mostrar">−</button>
+                </div>
+                <div class="config-content">
+                    <div class="input-group">
+                        <label for="durationInput">Duración del Riego (segundos)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="durationInput" min="1" max="3600" value="30" class="input">
+                            <span class="input-unit">seg</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="durationSlider" min="1" max="300" value="30" class="slider">
+                            <div class="slider-labels">
+                                <span>1s</span>
+                                <span>150s</span>
+                                <span>300s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" id="saveDurationBtn">
+                        <span class="btn-icon">💾</span>
+                        <span>Guardar Duración</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Historial de Riegos -->
+            <section class="card history-card widget" data-widget="history">
+                <div class="widget-header">
+                    <div class="card-header">
+                        <h2>Historial de Riegos</h2>
+                        <p class="card-subtitle">Últimos 10 riegos realizados</p>
+                    </div>
+                    <button class="widget-toggle" data-widget="history" title="Ocultar/Mostrar">−</button>
+                </div>
+                <div class="history-content" id="historyContent">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <div class="empty-state-text">No hay historial aún</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gráfico de Actividad -->
+            <section class="card chart-card widget" data-widget="chart">
+                <div class="widget-header">
+                    <div class="card-header">
+                        <h2>Actividad Diaria</h2>
+                        <p class="card-subtitle">Riegos realizados hoy</p>
+                    </div>
+                    <button class="widget-toggle" data-widget="chart" title="Ocultar/Mostrar">−</button>
+                </div>
+                <div class="chart-content">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Programación de Horarios -->
+            <section class="card schedule-card widget" data-widget="schedule">
+                <div class="widget-header">
+                    <div class="card-header">
+                        <h2>Programación de Horarios</h2>
+                        <p class="card-subtitle">Configura los horarios automáticos de riego</p>
+                    </div>
+                    <button class="widget-toggle" data-widget="schedule" title="Ocultar/Mostrar">−</button>
+                </div>
+                <div class="schedule-content">
+                    <div class="schedule-list" id="scheduleList">
+                        <!-- Los horarios se agregarán dinámicamente -->
+                    </div>
+                    <button class="btn btn-accent" id="addScheduleBtn">
+                        <span class="btn-icon">➕</span>
+                        <span>Agregar Horario</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Panel de Logs -->
+    <div class="logs-panel" id="logsPanel">
+        <div class="logs-header">
+            <h3>Logs del Sistema</h3>
+            <div class="logs-actions">
+                <button class="btn-icon-only" id="clearLogsBtn" title="Limpiar logs">🗑️</button>
+                <button class="btn-icon-only" id="closeLogsBtn" title="Cerrar">✕</button>
+            </div>
+        </div>
+        <div class="logs-content" id="logsContent"></div>
+    </div>
+
+    <!-- Botón flotante para abrir logs -->
+    <button class="floating-btn" id="openLogsBtn" title="Ver logs">
+        📋
+        <span class="log-badge" id="logBadge" style="display: none;">0</span>
+    </button>
+
+    <!-- Modal de Configuración -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Configuración</h3>
+                <button class="modal-close" id="closeSettingsModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="esp32IpInput">IP del ESP32</label>
+                    <input type="text" id="esp32IpInput" class="input" placeholder="192.168.1.100">
+                    <small class="form-hint">Dirección IP de tu dispositivo ESP32</small>
+                </div>
+                <div class="form-group">
+                    <label for="esp32PortInput">Puerto</label>
+                    <input type="number" id="esp32PortInput" class="input" placeholder="80" min="1" max="65535">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="testModeCheckbox">
+                        <span>Modo de Prueba</span>
+                    </label>
+                    <small class="form-hint">Simula el funcionamiento sin activar el motor físico</small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="notificationsCheckbox" checked>
+                        <span>Notificaciones</span>
+                    </label>
+                    <small class="form-hint">Mostrar notificaciones de eventos</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelSettingsBtn">Cancelar</button>
+                <button class="btn btn-primary" id="saveSettingsBtn">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para agregar/editar horario -->
+    <div class="modal" id="scheduleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Horario</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="scheduleTime">Hora</label>
+                    <input type="time" id="scheduleTime" class="input" required>
+                </div>
+                <div class="form-group">
+                    <label>Días de la Semana</label>
+                    <div class="days-selector">
+                        <label class="day-checkbox">
+                            <input type="checkbox" value="0" class="day-input">
+                            <span>Lun</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" value="1" class="day-input">
+                            <span>Mar</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" value="2" class="day-input">
+                            <span>Mié</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" value="3" class="day-input">
+                            <span>Jue</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" value="4" class="day-input">
+                            <span>Vie</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" value="5" class="day-input">
+                            <span>Sáb</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" value="6" class="day-input">
+                            <span>Dom</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="scheduleEnabled" checked>
+                        <span>Horario activo</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelScheduleBtn">Cancelar</button>
+                <button class="btn btn-primary" id="saveScheduleBtn">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

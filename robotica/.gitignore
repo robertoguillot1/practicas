@@ -1,0 +1,31 @@
+# Archivos de configuración personalizados
+config.js
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos compilados de Arduino
+*.hex
+*.elf
+*.bin
+
+# Archivos de build
+build/
+dist/
+
+# Logs
+*.log
+
+# Archivos temporales
+*.tmp
+*.temp
+
